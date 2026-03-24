@@ -10,7 +10,7 @@ app.use(bodyParser.json());
 
 // ⚠️ IMPORTANT: Use StackBlitz env system
 const openai = new OpenAI({
-  apiKey: 'YOUR_REAL_KEY_HERE'
+  apiKey: process.env.OPENAI_API_KEY
 });
 app.get('/', (req, res) => {
   res.send(`
