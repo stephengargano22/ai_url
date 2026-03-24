@@ -1,55 +1,25 @@
-import express from 'express';
-import bodyParser from 'body-parser';
-import OpenAI from 'openai';
-import cors from 'cors';
-
-const app = express();
-app.use(bodyParser.json());
-app.use(cors());
-app.use(bodyParser.json());
-
-// ⚠️ IMPORTANT: Use StackBlitz env system
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-app.get('/', (req, res) => {
-  res.send(`
-    <h2>AI URL Generator</h2>
-    <input id="input" placeholder="Enter query..." style="width:300px;" />
-    <button onclick="send()">Generate</button>
-    <pre id="output"></pre>
-
-    <script>
-      async function send() {
-        const userInput = document.getElementById('input').value;
-
-        const res = await fetch('/generate-url', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ userInput })
-        });
-
-        const data = await res.json();
-        document.getElementById('output').innerText = JSON.stringify(data, null, 2);
-      }
-    </script>
-  `);
-});
 app.post('/generate-url', async (req, res) => {
   const { userInput } = req.body;
 
   try {
     const prompt = `
 Extract filters from the user query and return ONLY JSON.
+
 Schema:
 {
   "member_status": "active | lapsed | null",
   "state": "VIC | NSW | QLD | null",
   "join_date_from": "YYYY-MM-DD | null",
-  "join_date_to": "YYYY-MM-DD | null"
+  "join_date_to": "YYYY-MM-DD | null",
+  "company": "string | null",
+  "last_name": "string | null"
 }
+
+Rules:
+- company = organisation/employer name mentioned
+- last_name = surname of a person
+- return null if not present
+
 User query: "${userInput}"
 `;
 
@@ -61,11 +31,12 @@ User query: "${userInput}"
 
     let jsonString = response.choices[0].message.content;
 
-// Remove markdown code blocks if present
-jsonString = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
+    // Clean markdown if present
+    jsonString = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
+
     const filters = JSON.parse(jsonString);
 
-    const baseUrl = 'https://yourimis.org/iqa?';
+    const baseUrl = 'https://uhubemsdev.imiscloud.com/i4u_Sandbox/FirstName.aspx?';
     const params = new URLSearchParams();
 
     if (filters.member_status) params.append('status', filters.member_status);
@@ -73,18 +44,20 @@ jsonString = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
     if (filters.join_date_from) params.append('joinDateFrom', filters.join_date_from);
     if (filters.join_date_to) params.append('joinDateTo', filters.join_date_to);
 
+    // ✅ NEW FIELDS
+    if (filters.company) params.append('Company', filters.company);
+    if (filters.last_name) params.append('LastName', filters.last_name);
+
     res.json({ url: baseUrl + params.toString() });
 
   } catch (err) {
-  console.error('FULL ERROR:', err);
+    console.error('FULL ERROR:', err);
 
-  res.status(500).json({
-    error: err?.message || 'Failed to generate URL',
-    type: err?.type || null,
-    code: err?.code || null,
-    status: err?.status || null
-  });
-}
+    res.status(500).json({
+      error: err?.message || 'Failed to generate URL',
+      type: err?.type || null,
+      code: err?.code || null,
+      status: err?.status || null
+    });
+  }
 });
-
-app.listen(3000, () => console.log('Server running'));
