@@ -76,9 +76,15 @@ jsonString = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
     res.json({ url: baseUrl + params.toString() });
 
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to generate URL' });
-  }
+  console.error('FULL ERROR:', err);
+
+  res.status(500).json({
+    error: err?.message || 'Failed to generate URL',
+    type: err?.type || null,
+    code: err?.code || null,
+    status: err?.status || null
+  });
+}
 });
 
 app.listen(3000, () => console.log('Server running'));
